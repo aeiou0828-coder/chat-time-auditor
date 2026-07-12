@@ -42,7 +42,10 @@ const END_PHRASES=[
  '您客气了，您的满意一直是我们的目标，有任何问题欢迎您随时联系在线客服，祝您生活愉快，多多盈利'
 ];
 const norm=s=>s.replace(/[\s*，,。.!！?？｜|]/g,'').toLowerCase();
-const isEnd=s=>END_PHRASES.some(p=>norm(s).includes(norm(p)));
+const isEnd=s=>{const n=norm(s);return END_PHRASES.some(p=>n.includes(norm(p)))||(
+ ['許久尚未回覆','许久尚未回复'].some(x=>n.includes(x))&&
+ ['對話框將被關閉','对话框将被关闭'].some(x=>n.includes(x))
+)};
 const isLegacy=s=>{const n=norm(s);return(
  ['請問','请问'].some(x=>n.includes(x))&&
  ['其他','還有什麼','还有什么'].some(x=>n.includes(x))&&
