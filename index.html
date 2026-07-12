@@ -44,12 +44,17 @@ const END_PHRASES=[
 const norm=s=>s.replace(/[\s*，,。.!！?？｜|]/g,'').toLowerCase();
 const isEnd=s=>{const n=norm(s);return END_PHRASES.some(p=>n.includes(norm(p)))||(
  ['許久尚未回覆','许久尚未回复'].some(x=>n.includes(x))&&
- ['對話框將被關閉','对话框将被关闭'].some(x=>n.includes(x))
+ ['對話框','对话框'].some(x=>n.includes(x))&&
+ ['關閉','关闭'].some(x=>n.includes(x))
 )};
 const isLegacy=s=>{const n=norm(s);return(
  ['請問','请问'].some(x=>n.includes(x))&&
  ['其他','還有什麼','还有什么'].some(x=>n.includes(x))&&
  ['協助','协助','幫助','帮助'].some(x=>n.includes(x))
+ )||(
+  ['請問','请问'].some(x=>n.includes(x))&&
+  ['還有問題','还有问题','有問題','有问题'].some(x=>n.includes(x))&&
+  ['處理','处理'].some(x=>n.includes(x))
  )||(
   ['在線上','在线上'].some(x=>n.includes(x))&&
   ['協助','协助'].some(x=>n.includes(x))&&
