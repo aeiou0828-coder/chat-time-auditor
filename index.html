@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>客服對話時間錯誤檢查工具</title>
+  <style>
+    :root{color-scheme:light;--bg:#f4f6f8;--panel:#fff;--text:#18212b;--muted:#66717d;--line:#d9dee5;--blue:#1769aa;--red:#b42318;--amber:#a15c00;--green:#18794e}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 system-ui,"Microsoft JhengHei","PingFang TC",sans-serif;letter-spacing:0}
+    header{background:#17324d;color:#fff;padding:18px 24px}.wrap{max-width:1280px;margin:auto}h1{font-size:22px;margin:0}header p{margin:3px 0 0;color:#d8e5ef}
+    main{padding:20px 24px 32px}.grid{display:grid;grid-template-columns:minmax(340px,1fr) minmax(420px,1.25fr);gap:16px;align-items:start}.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px}
+    h2{font-size:16px;margin:0 0 12px}textarea{width:100%;min-height:620px;resize:vertical;border:1px solid #aeb7c2;border-radius:4px;padding:12px;font:13px/1.55 Consolas,"Microsoft JhengHei",monospace;outline:none}textarea:focus{border-color:var(--blue);box-shadow:0 0 0 2px #1769aa22}
+    .actions{display:flex;gap:8px;margin-top:12px}button{border:0;border-radius:4px;padding:9px 14px;font-weight:650;cursor:pointer}button.primary{background:var(--blue);color:#fff}button.secondary{background:#e8edf2;color:#263747}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}.metric{border:1px solid var(--line);padding:10px;border-radius:4px}.metric b{display:block;font-size:22px}.metric span{color:var(--muted)}
+    .notice{padding:10px 12px;border-left:4px solid var(--amber);background:#fff8e8;margin-bottom:12px}.ok{border-left-color:var(--green);background:#effaf5}.error-list{display:grid;gap:9px}.item{border:1px solid var(--line);border-left:5px solid var(--red);border-radius:4px;padding:10px 12px}.item.warn{border-left-color:var(--amber)}.item.okitem{border-left-color:var(--green)}.item h3{font-size:14px;margin:0 0 4px}.item p{margin:2px 0;color:#394653}.tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 6px;border-radius:3px;background:#fee4e2;color:var(--red);margin-right:6px}.tag.green{background:#dff4e9;color:var(--green)}.tag.amber{background:#fff0cc;color:var(--amber)}
+    details{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;border-bottom:1px solid #e7eaee;padding:6px;vertical-align:top}th{color:var(--muted)}.muted{color:var(--muted)}
+    @media(max-width:850px){main{padding:12px}.grid{grid-template-columns:1fr}.summary{grid-template-columns:repeat(2,1fr)}textarea{min-height:430px}}
+  </style>
+</head>
+<body>
+<header><div class="wrap"><h1>客服對話時間錯誤檢查工具</h1><p>貼上完整聊天文字，檢查首回、後續回覆、遺留語、結束語及超時結束。</p></div></header>
+<main class="wrap"><div class="grid">
+  <section class="panel"><h2>聊天內容</h2><textarea id="input" spellcheck="false" placeholder="請貼上完整聊天記錄..."></textarea><div class="actions"><button class="primary" id="analyze">開始檢查</button><button class="secondary" id="clear">清除</button></div></section>
+  <section class="panel"><h2>檢查結果</h2><div id="result"><div class="notice">尚未分析聊天內容。</div></div></section>
+</div></main>
+<script>
+const TIME=/^(?:(\d{4})-)?(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})(?:\s+(.*))?$/;
+const CLOSE=/(客服结束对话|客服結束對話|访客结束|訪客結束|对话超时结束|對話超時結束)/;
+const TRANSFER=/轉接|转接/;
+const AUTO=/^自動回覆$|^自动回复$|自動回覆頭像|自动回复头像/;
+const AGENT_HINT=/客服|\{[^}]+\}|頭像$|头像$/;
+const META=/^(?:自動回覆|自动回复|.*頭像|.*头像|\{[^}]+\}\S*)$/;
+const cleanAgent=s=>(s||'').replace(/頭像$|头像$/,'').trim();
+const transferAgents=s=>{const m=(s||'').match(/(?:轉接|转接)\s+(.+?)\s+(?:分配給|分配给)\s+(.+)$/);return m?{from:cleanAgent(m[1]),to:cleanAgent(m[2])}:{from:'',to:''}};
+const END_PHRASES=[
+ '由於長時間未收到您的回覆',
+ '由于长时间未收到您的回复',
+ '很高興為您提供此次服務，如還有其他的諮詢請點擊我們24h在線客服，期待您的下次光臨，祝您生活愉快',
+ '很高兴为您提供此次服务，如还有其他的咨询请点击我们24h在线客服，期待您的下次光临，祝您生活愉快',
+ '感謝您對我們的支持，如有任何疑問，歡迎隨時諮詢24小時在線客服。祝您生活愉快，盈利多多',
+ '感谢您对我们的支持，如有任何疑问，欢迎随时咨询24小时在线客服。祝您生活愉快，盈利多多',
+ '您客氣了，您的滿意一直是我們的目標，有任何問題歡迎您隨時聯繫在線客服，祝您生活愉快，多多盈利',
+ '您客气了，您的满意一直是我们的目标，有任何问题欢迎您随时联系在线客服，祝您生活愉快，多多盈利'
+];
+const norm=s=>s.replace(/[\s*，,。.!！?？｜|]/g,'').toLowerCase();
+const isEnd=s=>END_PHRASES.some(p=>norm(s).includes(norm(p)));
+const isLegacy=s=>{const n=norm(s);return(
+ ['請問','请问'].some(x=>n.includes(x))&&
+ ['其他','還有什麼','还有什么'].some(x=>n.includes(x))&&
+ ['協助','协助','幫助','帮助'].some(x=>n.includes(x))
+ )||['還在屏幕前嗎','还在屏幕前吗','還在線嗎','还在线吗'].some(x=>n.includes(norm(x)))};
+function stamp(m,year){return new Date(Number(m[1]||year),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),Number(m[6])).getTime()}
+function parse(raw){
+ const lines=raw.replace(/\r/g,'').split('\n').map(x=>x.trim()), marks=[];let year=new Date().getFullYear();
+ lines.forEach((line,i)=>{const m=line.match(TIME);if(m){if(m[1])year=+m[1];marks.push({i,m,t:stamp(m,year),tail:(m[7]||'').trim()})}});
+ const events=[];
+ for(let k=0;k<marks.length;k++){const cur=marks[k],prev=k?marks[k-1].i:-1;
+  if(CLOSE.test(cur.tail)){events.push({t:cur.t,role:'system',text:cur.tail,close:cur.tail});continue}
+  if(TRANSFER.test(cur.tail)){events.push({t:cur.t,role:'system',text:cur.tail,transfer:cur.tail,...transferAgents(cur.tail)});continue}
+  let between=lines.slice(prev+1,cur.i).filter(Boolean);
+  // Lines directly following the previous timestamp identify that previous speaker.
+  while(between.length&&META.test(between[0]))between.shift();
+  const after=lines.slice(cur.i+1,(marks[k+1]||{i:lines.length}).i).filter(Boolean), meta=after.slice(0,2).join('\n');
+  let role='member';if(AUTO.test(cur.tail)||AUTO.test(meta))role='auto';else if(AGENT_HINT.test(cur.tail)||AGENT_HINT.test(meta))role='agent';
+  const agent=role==='agent'?cleanAgent(after.find(x=>/\{[^}]+\}/.test(x)&&!/頭像$|头像$/.test(x))||cur.tail):'';
+  events.push({t:cur.t,role,agent,text:between.join('\n')||'[圖片]',raw:lines[cur.i]});
+ }
+ return events.sort((a,b)=>a.t-b.t);
+}
+function fmt(ms){const s=Math.max(0,Math.round(ms/1000)),m=Math.floor(s/60),r=s%60;return `${m}分${String(r).padStart(2,'0')}秒`}
+function clock(t){return new Date(t).toLocaleString('zh-TW',{hour12:false})}
+function levelFirst(sec){if(sec<60)return '合格';if(sec<100)return '第一階段';if(sec<180)return '第二階段';return '第三階段'}
+function levelNext(sec){if(sec<180)return '合格';if(sec<240)return '第一階段';if(sec<300)return '第二階段';return '第三階段'}
+function audit(events){
+ const usable=events.filter(e=>e.role!=='auto'&&e.role!=='system'), errors=[], checks=[];let firstDone=false, waiting=null;
+ const ownerAt=t=>events.reduce((name,e)=>e.t>t?name:e.transfer&&e.to?e.to:e.role==='agent'&&e.agent?e.agent:name,'');
+ for(const e of usable){
+  if(e.role==='member'&&!waiting)waiting={event:e,first:!firstDone};
+  if(e.role==='agent'&&waiting){const sec=(e.t-waiting.event.t)/1000, level=waiting.first?levelFirst(sec):levelNext(sec), limit=waiting.first?60:180;
+   checks.push({kind:waiting.first?'首次回覆':'後續回覆',start:waiting.event.t,end:e.t,sec,level});
+   if(level!=='合格'){const occurredAt=waiting.event.t+limit*1000;errors.push({type:waiting.first?'首回超時':'長時間未回覆',level,at:occurredAt,owner:ownerAt(occurredAt)||e.agent,detail:`會員 ${clock(waiting.event.t)} 發話，客服 ${clock(e.t)} 回覆；等待 ${fmt(e.t-waiting.event.t)}，超時 ${fmt(e.t-waiting.event.t-limit*1000)}。`})}
+   firstDone=true;waiting=null;
+  }
+ }
+ const close=events.filter(e=>e.close).at(-1), lastAgent=usable.filter(e=>e.role==='agent'), legacy=lastAgent.filter(e=>isLegacy(e.text)).at(-1), ending=lastAgent.filter(e=>isEnd(e.text)).at(-1);
+ const finalAgent=events.reduce((name,e)=>e.transfer&&e.to?e.to:e.role==='agent'&&e.agent?e.agent:name,'');
+ if(waiting&&close){const sec=(close.t-waiting.event.t)/1000,level=waiting.first?levelFirst(sec):levelNext(sec),limit=waiting.first?60:180,occurredAt=waiting.event.t+limit*1000;errors.push({type:'會員未獲回覆',level:level==='合格'?'流程錯誤':level,at:occurredAt,owner:ownerAt(occurredAt)||finalAgent,detail:`會員 ${clock(waiting.event.t)} 發話後，直到對話結束仍無客服回覆，經過 ${fmt(close.t-waiting.event.t)}。`})}
+ if(!legacy)errors.push({type:'缺少遺留語',level:'流程錯誤',at:close?.t,owner:finalAgent,detail:'對話結束前未找到有效遺留語。'});
+ if(!ending)errors.push({type:'缺少結束語',level:'流程錯誤',at:close?.t,owner:finalAgent,detail:'對話結束前未找到指定結束語。'});
+ if(legacy&&ending){const gap=ending.t-legacy.t;if(gap<180000)errors.push({type:'遺留語間隔不足',level:'流程錯誤',at:ending.t,owner:ending.agent,detail:`遺留語 ${clock(legacy.t)}，結束語 ${clock(ending.t)}；間隔 ${fmt(gap)}，不足 ${fmt(180000-gap)}。`})}
+ if(close&&/超时|超時/.test(close.close))errors.push({type:'對話超時結束',level:'流程錯誤',at:close.t,owner:finalAgent,detail:`系統記錄：${close.close}`});
+ if(!close)errors.push({type:'未找到結束記錄',level:'資料錯誤',owner:finalAgent,detail:'未找到「客服結束對話」、「訪客結束」或「對話超時結束」。'});
+ const transfers=events.filter(e=>e.transfer);let previousTransferTime=-Infinity;
+ for(const transfer of transfers){
+  const hasTransferNotice=events.some(e=>e.role==='agent'&&e.t>previousTransferTime&&e.t<transfer.t&&['將會為您轉接到','将会为您转接到'].some(keyword=>norm(e.text).includes(norm(keyword))));
+  if(!hasTransferNotice)errors.push({type:'轉接沒發送轉接語',level:'流程錯誤',at:transfer.t,owner:transfer.from,detail:`${clock(transfer.t)} 發生轉接，但本次轉接前未找到包含「將會為您轉接到」的客服訊息。系統記錄：${transfer.transfer}`});
+  previousTransferTime=transfer.t;
+ }
+ return {errors,checks,close,legacy,ending};
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(events,a){const bad=a.errors.length, phases=a.errors.filter(x=>/階段/.test(x.level)).length;
+ let html=`<div class="summary"><div class="metric"><b>${events.length}</b><span>解析事件</span></div><div class="metric"><b>${a.checks.length}</b><span>回覆檢查</span></div><div class="metric"><b>${bad}</b><span>錯誤總數</span></div><div class="metric"><b>${phases}</b><span>時間錯誤</span></div></div>`;
+ html+=bad?`<div class="notice">發現 ${bad} 項需要檢查的錯誤。</div>`:`<div class="notice ok">未發現規則內錯誤。</div>`;
+ html+='<div class="error-list">'+(a.errors.map(x=>`<article class="item"><h3><span class="tag">${esc(x.level)}</span>${esc(x.type)}</h3>${x.owner?`<p><strong>責任客服：</strong>${esc(x.owner)}</p>`:''}<p>${esc(x.detail)}</p></article>`).join('')||'<article class="item okitem"><h3><span class="tag green">合格</span>所有檢查通過</h3></article>')+'</div>';
+ html+=`<details><summary>查看回覆計時明細</summary><table><thead><tr><th>類型</th><th>會員發話</th><th>客服回覆</th><th>耗時</th><th>結果</th></tr></thead><tbody>${a.checks.map(x=>`<tr><td>${x.kind}</td><td>${clock(x.start)}</td><td>${clock(x.end)}</td><td>${fmt(x.sec*1000)}</td><td>${x.level}</td></tr>`).join('')}</tbody></table></details>`;
+ html+=`<details><summary>查看解析事件（用於核對身份判斷）</summary><table><thead><tr><th>時間</th><th>身份／客服</th><th>內容</th></tr></thead><tbody>${events.map(e=>`<tr><td>${clock(e.t)}</td><td>${e.role}${e.agent?`<br>${esc(e.agent)}`:''}${e.transfer?`<br>${esc(e.from)} → ${esc(e.to)}`:''}</td><td>${esc(e.text).replace(/\n/g,'<br>')}</td></tr>`).join('')}</tbody></table></details>`;return html}
+document.querySelector('#analyze').onclick=()=>{const raw=document.querySelector('#input').value;if(!raw.trim()){document.querySelector('#result').innerHTML='<div class="notice">請先貼上聊天內容。</div>';return}const events=parse(raw),a=audit(events);document.querySelector('#result').innerHTML=render(events,a)};
+document.querySelector('#clear').onclick=()=>{document.querySelector('#input').value='';document.querySelector('#result').innerHTML='<div class="notice">尚未分析聊天內容。</div>'};
+</script></body></html>
