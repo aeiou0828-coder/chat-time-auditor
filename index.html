@@ -99,6 +99,18 @@ function audit(events){
   if(!hasTransferNotice)errors.push({type:'轉接沒發送轉接語',level:'流程錯誤',at:transfer.t,owner:transfer.from,detail:`${clock(transfer.t)} 發生轉接，但本次轉接前未找到包含「將會為您轉接到」的客服訊息。系統記錄：${transfer.transfer}`});
   previousTransferTime=transfer.t;
  }
+ const repeatedAgentMessages=new Map();
+ for(const event of events.filter(e=>e.role==='agent'&&e.text&&e.text!=='[圖片]')){
+  const exactText=event.text.trim();if(!exactText)continue;
+  if(!repeatedAgentMessages.has(exactText))repeatedAgentMessages.set(exactText,[]);
+  repeatedAgentMessages.get(exactText).push(event);
+ }
+ for(const [text,occurrences] of repeatedAgentMessages){
+  if(occurrences.length<2)continue;
+  const owners=[...new Set(occurrences.map(e=>e.agent).filter(Boolean))].join('、');
+  const times=occurrences.map(e=>`${clock(e.t)}${e.agent?`（${e.agent}）`:''}`).join('；');
+  errors.push({type:'機械話術',level:'話術錯誤',at:occurrences[1].t,owner:owners,detail:`完全相同內容共發送 ${occurrences.length} 次。發話內容：${text}。發話時間：${times}。`});
+ }
  return {errors,checks,close,legacy,ending};
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
