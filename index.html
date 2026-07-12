@@ -113,7 +113,7 @@ function audit(events){
    const text=norm(e.text);
    return ['將會為您轉接到','将会为您转接到'].some(keyword=>text.includes(norm(keyword)))||(
     ['轉接','转接'].some(keyword=>text.includes(keyword))&&
-    ['下一位客服'].some(keyword=>text.includes(keyword))
+    ['下一位客服','另一客服','其他客服','客服人員','客服人员'].some(keyword=>text.includes(keyword))
    );
   });
   if(!hasTransferNotice)errors.push({type:'转接没发送转接语',level:'流程错误',at:transfer.t,owner:transfer.from,detail:`${clock(transfer.t)} 发生转接，但本次转接前未找到包含「将会为您转接到」的客服信息。系统记录：${transfer.transfer}`});
