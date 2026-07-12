@@ -49,8 +49,8 @@ const isEnd=s=>{const n=norm(s);return END_PHRASES.some(p=>n.includes(norm(p)))|
  ['關閉','关闭'].some(x=>n.includes(x))
 )||(
  ['長時間','长时间'].some(x=>n.includes(x))&&
- ['未收到您的回覆','未收到您的回复'].some(x=>n.includes(x))&&
- ['中斷此次對話','中断此次对话'].some(x=>n.includes(x))
+ ['未收到您的回覆','未收到您的回复','沒有得到您的回覆','没有得到您的回复'].some(x=>n.includes(x))&&
+ ['中斷此次對話','中断此次对话','終止此次對話','终止此次对话'].some(x=>n.includes(x))
 )};
 const isLegacy=s=>{const n=norm(s);return(
  ['請問','请问'].some(x=>n.includes(x))&&
