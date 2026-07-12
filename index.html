@@ -29,6 +29,7 @@ const TRANSFER=/轉接|转接/;
 const AUTO=/^自動回覆$|^自动回复$|自動回覆頭像|自动回复头像/;
 const AGENT_HINT=/客服|\{[^}]+\}|頭像$|头像$/;
 const META=/^(?:自動回覆|自动回复|.*頭像|.*头像|\{[^}]+\}\S*)$/;
+const AGENT_META=/^(?:.*頭像|.*头像|\{[^}]+\}\S*)$/;
 const cleanAgent=s=>(s||'').replace(/頭像$|头像$/,'').trim();
 const transferAgents=s=>{const m=(s||'').match(/(?:轉接|转接)\s+(.+?)\s+(?:分配給|分配给)\s+(.+)$/);return m?{from:cleanAgent(m[1]),to:cleanAgent(m[2])}:{from:'',to:''}};
 const END_PHRASES=[
@@ -46,6 +47,10 @@ const isEnd=s=>{const n=norm(s);return END_PHRASES.some(p=>n.includes(norm(p)))|
  ['許久尚未回覆','许久尚未回复'].some(x=>n.includes(x))&&
  ['對話框','对话框'].some(x=>n.includes(x))&&
  ['關閉','关闭'].some(x=>n.includes(x))
+)||(
+ ['長時間','长时间'].some(x=>n.includes(x))&&
+ ['未收到您的回覆','未收到您的回复'].some(x=>n.includes(x))&&
+ ['中斷此次對話','中断此次对话'].some(x=>n.includes(x))
 )};
 const isLegacy=s=>{const n=norm(s);return(
  ['請問','请问'].some(x=>n.includes(x))&&
@@ -71,8 +76,8 @@ function parse(raw){
   let between=lines.slice(prev+1,cur.i).filter(Boolean);
   // Lines directly following the previous timestamp identify that previous speaker.
   while(between.length&&META.test(between[0]))between.shift();
-  const after=lines.slice(cur.i+1,(marks[k+1]||{i:lines.length}).i).filter(Boolean), meta=after.slice(0,2).join('\n');
-  let role='member';if(AUTO.test(cur.tail)||AUTO.test(meta))role='auto';else if(AGENT_HINT.test(cur.tail)||AGENT_HINT.test(meta))role='agent';
+  const after=lines.slice(cur.i+1,(marks[k+1]||{i:lines.length}).i).filter(Boolean), metaLines=after.slice(0,2), meta=metaLines.join('\n');
+  let role='member';if(AUTO.test(cur.tail)||AUTO.test(meta))role='auto';else if(AGENT_HINT.test(cur.tail)||metaLines.some(x=>AGENT_META.test(x)))role='agent';
   const agent=role==='agent'?cleanAgent(after.find(x=>/\{[^}]+\}/.test(x)&&!/頭像$|头像$/.test(x))||cur.tail):'';
   events.push({t:cur.t,role,agent,text:between.join('\n')||'[图片]',raw:lines[cur.i]});
  }
@@ -103,7 +108,14 @@ function audit(events){
  if(!close)errors.push({type:'未找到结束记录',level:'资料错误',owner:finalAgent,detail:'未找到「客服结束对话」、「同事结束对话」、「访客结束」或「对话超时结束」。'});
  const transfers=events.filter(e=>e.transfer);let previousTransferTime=-Infinity;
  for(const transfer of transfers){
-  const hasTransferNotice=events.some(e=>e.role==='agent'&&e.t>previousTransferTime&&e.t<transfer.t&&['將會為您轉接到','将会为您转接到'].some(keyword=>norm(e.text).includes(norm(keyword))));
+  const hasTransferNotice=events.some(e=>{
+   if(e.role!=='agent'||e.t<=previousTransferTime||e.t>=transfer.t)return false;
+   const text=norm(e.text);
+   return ['將會為您轉接到','将会为您转接到'].some(keyword=>text.includes(norm(keyword)))||(
+    ['轉接','转接'].some(keyword=>text.includes(keyword))&&
+    ['下一位客服'].some(keyword=>text.includes(keyword))
+   );
+  });
   if(!hasTransferNotice)errors.push({type:'转接没发送转接语',level:'流程错误',at:transfer.t,owner:transfer.from,detail:`${clock(transfer.t)} 发生转接，但本次转接前未找到包含「将会为您转接到」的客服信息。系统记录：${transfer.transfer}`});
   previousTransferTime=transfer.t;
  }
