@@ -24,7 +24,7 @@
 </div></main>
 <script>
 const TIME=/^(?:(\d{4})-)?(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})(?:\s+(.*))?$/;
-const CLOSE=/(客服结束对话|客服結束對話|访客结束|訪客結束|对话超时结束|對話超時結束)/;
+const CLOSE=/(客服结束对话|客服結束對話|同事结束对话|同事結束對話|访客结束|訪客結束|对话超时结束|對話超時結束)/;
 const TRANSFER=/轉接|转接/;
 const AUTO=/^自動回覆$|^自动回复$|自動回覆頭像|自动回复头像/;
 const AGENT_HINT=/客服|\{[^}]+\}|頭像$|头像$/;
@@ -92,7 +92,7 @@ function audit(events){
  if(!ending)errors.push({type:'缺少結束語',level:'流程錯誤',at:close?.t,owner:finalAgent,detail:'對話結束前未找到指定結束語。'});
  if(legacy&&ending){const gap=ending.t-legacy.t;if(gap<180000)errors.push({type:'遺留語間隔不足',level:'流程錯誤',at:ending.t,owner:ending.agent,detail:`遺留語 ${clock(legacy.t)}，結束語 ${clock(ending.t)}；間隔 ${fmt(gap)}，不足 ${fmt(180000-gap)}。`})}
  if(close&&/超时|超時/.test(close.close))errors.push({type:'對話超時結束',level:'流程錯誤',at:close.t,owner:finalAgent,detail:`系統記錄：${close.close}`});
- if(!close)errors.push({type:'未找到結束記錄',level:'資料錯誤',owner:finalAgent,detail:'未找到「客服結束對話」、「訪客結束」或「對話超時結束」。'});
+ if(!close)errors.push({type:'未找到結束記錄',level:'資料錯誤',owner:finalAgent,detail:'未找到「客服結束對話」、「同事結束對話」、「訪客結束」或「對話超時結束」。'});
  const transfers=events.filter(e=>e.transfer);let previousTransferTime=-Infinity;
  for(const transfer of transfers){
   const hasTransferNotice=events.some(e=>e.role==='agent'&&e.t>previousTransferTime&&e.t<transfer.t&&['將會為您轉接到','将会为您转接到'].some(keyword=>norm(e.text).includes(norm(keyword))));
