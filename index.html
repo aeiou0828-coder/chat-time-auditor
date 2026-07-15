@@ -64,7 +64,7 @@ const isLegacy=s=>{const n=norm(s);return(
   ['在線上','在线上'].some(x=>n.includes(x))&&
   ['協助','协助'].some(x=>n.includes(x))&&
   ['跟進','跟进','處理','处理'].some(x=>n.includes(x))
- )||['還在屏幕前嗎','还在屏幕前吗','還在線嗎','还在线吗'].some(x=>n.includes(norm(x)))};
+ )||['還在屏幕前嗎','还在屏幕前吗','還在線嗎','还在线吗','還在聊天窗口嗎','还在聊天窗口吗'].some(x=>n.includes(norm(x)))};
 function stamp(m,year){return new Date(Number(m[1]||year),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),Number(m[6])).getTime()}
 function parse(raw){
  const lines=raw.replace(/\r/g,'').split('\n').map(x=>x.trim()), marks=[];let year=new Date().getFullYear();
