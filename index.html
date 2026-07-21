@@ -26,6 +26,7 @@
 const TIME=/^(?:(\d{4})-)?(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})(?:\s+(.*))?$/;
 const CLOSE=/(客服结束对话|客服結束對話|同事结束对话|同事結束對話|访客结束|訪客結束|对话超时结束|對話超時結束)/;
 const TRANSFER=/轉接|转接/;
+const DELIVERY_STATUS=/^(?:已发送|已發送)$/;
 const AUTO=/^自動回覆$|^自动回复$|自動回覆頭像|自动回复头像/;
 const AGENT_HINT=/客服|\{[^}]+\}|頭像$|头像$/;
 const META=/^(?:自動回覆|自动回复|.*頭像|.*头像|\{[^}]+\}\S*)$/;
@@ -44,6 +45,13 @@ const END_PHRASES=[
 ];
 const norm=s=>s.replace(/[\s*，,。.!！?？｜|]/g,'').toLowerCase();
 const isEnd=s=>{const n=norm(s);return END_PHRASES.some(p=>n.includes(norm(p)))||(
+ ['很高興','很高兴'].some(x=>n.includes(x))&&
+ ['提供此次服務','提供此次服务'].some(x=>n.includes(x))&&
+ ['其他諮詢','其他咨询'].some(x=>n.includes(x))&&
+ ['在線客服','在线客服'].some(x=>n.includes(x))&&
+ ['下次光臨','下次光临'].some(x=>n.includes(x))&&
+ ['生活愉快'].some(x=>n.includes(x))
+)||(
  ['許久尚未回覆','许久尚未回复'].some(x=>n.includes(x))&&
  ['對話框','对话框'].some(x=>n.includes(x))&&
  ['關閉','关闭'].some(x=>n.includes(x))
@@ -73,6 +81,7 @@ function parse(raw){
  for(let k=0;k<marks.length;k++){const cur=marks[k],prev=k?marks[k-1].i:-1;
   if(CLOSE.test(cur.tail)){events.push({t:cur.t,role:'system',text:cur.tail,close:cur.tail});continue}
   if(TRANSFER.test(cur.tail)){events.push({t:cur.t,role:'system',text:cur.tail,transfer:cur.tail,...transferAgents(cur.tail)});continue}
+  if(DELIVERY_STATUS.test(cur.tail))continue;
   let between=lines.slice(prev+1,cur.i).filter(Boolean);
   // Lines directly following the previous timestamp identify that previous speaker.
   while(between.length&&META.test(between[0]))between.shift();
