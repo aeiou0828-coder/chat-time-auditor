@@ -38,6 +38,7 @@ const isEnd=s=>/祝您[^。.!！?？\r\n]*[!！。]/.test(s||'');
 const isLegacy=s=>/(?:在线|屏幕|请问)[^。.!！?？\r\n]*[?？]/.test(s||'');
 const isLinkOnly=s=>/^(?:(?:https?:\/\/|www\.)\S+\s*)+$/i.test((s||'').trim());
 const hasEndingPunctuation=s=>/[\p{P}]$/u.test((s||'').trim());
+const punctuationUnits=s=>(s||'').split(/(?=[※＊])/u).map(x=>x.trim()).filter(Boolean);
 function stamp(m,year){return new Date(Number(m[1]||year),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),Number(m[6])).getTime()}
 function parse(raw){
  const lines=raw.replace(/\r/g,'').split('\n').map(x=>x.trim()), marks=[];let year=new Date().getFullYear();
@@ -95,8 +96,9 @@ function audit(events){
  }
  for(const event of events.filter(e=>e.role==='agent'&&e.text&&e.text!=='[图片]'&&e.text!=='[圖片]')){
   const text=event.text.trim();
-  if(!text||isLinkOnly(text)||hasEndingPunctuation(text))continue;
-  errors.push({type:'标点符号不规范',level:'第一阶段',at:event.t,owner:event.agent,detail:`客服于 ${clock(event.t)} 的回复结尾没有标点符号。回复内容：${text}`});
+  const invalidUnits=punctuationUnits(text).filter(unit=>!isLinkOnly(unit)&&!hasEndingPunctuation(unit));
+  if(!invalidUnits.length)continue;
+  errors.push({type:'标点符号不规范',level:'第一阶段',at:event.t,owner:event.agent,detail:`客服于 ${clock(event.t)} 的回复区段结尾没有标点符号。问题内容：${invalidUnits.join('｜')}`});
  }
  const repeatedAgentMessages=new Map();
  for(const event of events.filter(e=>e.role==='agent'&&e.text&&e.text!=='[图片]'&&e.text!=='[圖片]')){
