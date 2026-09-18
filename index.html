@@ -35,7 +35,7 @@ const cleanAgent=s=>(s||'').replace(/頭像$|头像$/,'').trim();
 const transferAgents=s=>{const m=(s||'').match(/(?:轉接|转接)\s+(.+?)\s+(?:分配給|分配给)\s+(.+)$/);return m?{from:cleanAgent(m[1]),to:cleanAgent(m[2])}:{from:'',to:''}};
 const norm=s=>s.replace(/[\s*，,。.!！?？｜|]/g,'').toLowerCase();
 const isEnd=s=>/祝您.*[!！]/.test(s||'');
-const isLegacy=s=>/(?:在线|屏幕)[^。.!！?？\r\n]*[?？]/.test(s||'');
+const isLegacy=s=>/(?:在线|屏幕|请问)[^。.!！?？\r\n]*[?？]/.test(s||'');
 function stamp(m,year){return new Date(Number(m[1]||year),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),Number(m[6])).getTime()}
 function parse(raw){
  const lines=raw.replace(/\r/g,'').split('\n').map(x=>x.trim()), marks=[];let year=new Date().getFullYear();
