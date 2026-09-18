@@ -20,7 +20,7 @@
   </style>
 </head>
 <body>
-<header><div class="wrap"><h1>客服对话时间错误检查工具</h1><p>版本 v2026.09.18.2｜贴上完整聊天文字，检查回复时间、流程与客服用语。</p></div></header>
+<header><div class="wrap"><h1>客服对话时间错误检查工具</h1><p>版本 v2026.09.18.3｜贴上完整聊天文字，检查回复时间、流程与客服用语。</p></div></header>
 <main class="wrap"><div class="grid">
   <section class="panel"><h2>聊天内容</h2><textarea id="input" spellcheck="false" placeholder="请贴上完整聊天记录..."></textarea><div class="actions"><button class="primary" id="analyze">开始检查</button><button class="secondary" id="clear">清除</button></div></section>
   <section class="panel"><h2>检查结果</h2><div id="result"><div class="notice">尚未分析聊天内容。</div></div></section>
@@ -42,6 +42,7 @@ const isLegacy=s=>/(?:在线|屏幕|请问)[^。.!！?？\r\n]*[?？]/.test(s||'
 const isLinkOnly=s=>/^(?:(?:https?:\/\/|www\.)\S+\s*)+$/i.test((s||'').trim());
 const hasEndingPunctuation=s=>/[\p{P}]$/u.test((s||'').trim());
 const punctuationUnits=s=>(s||'').split(/(?=[※＊])/u).map(x=>x.trim()).filter(Boolean);
+const isPunctuationExempt=s=>/新人专享礼包/.test(s||'');
 function stamp(m,year){return new Date(Number(m[1]||year),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),Number(m[6])).getTime()}
 function parse(raw){
  const lines=raw.replace(/\r/g,'').split('\n').map(x=>x.trim()), marks=[];let year=new Date().getFullYear();
@@ -99,6 +100,7 @@ function audit(events){
  }
  for(const event of events.filter(e=>e.role==='agent'&&e.text&&e.text!=='[图片]'&&e.text!=='[圖片]')){
   const text=event.text.trim();
+  if(isPunctuationExempt(text))continue;
   const invalidUnits=punctuationUnits(text).filter(unit=>!isLinkOnly(unit)&&!hasEndingPunctuation(unit));
   if(!invalidUnits.length)continue;
   errors.push({type:'标点符号不规范',level:'第一阶段',at:event.t,owner:event.agent,detail:`客服于 ${clock(event.t)} 的回复区段结尾没有标点符号。问题内容：${invalidUnits.join('｜')}`});
