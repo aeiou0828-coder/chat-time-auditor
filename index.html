@@ -33,51 +33,9 @@ const META=/^(?:自動回覆|自动回复|.*頭像|.*头像|\{[^}]+\}\S*)$/;
 const AGENT_META=/^(?:.*頭像|.*头像|\{[^}]+\}\S*)$/;
 const cleanAgent=s=>(s||'').replace(/頭像$|头像$/,'').trim();
 const transferAgents=s=>{const m=(s||'').match(/(?:轉接|转接)\s+(.+?)\s+(?:分配給|分配给)\s+(.+)$/);return m?{from:cleanAgent(m[1]),to:cleanAgent(m[2])}:{from:'',to:''}};
-const END_PHRASES=[
- '由於長時間未收到您的回覆',
- '由于长时间未收到您的回复',
- '很高興為您提供此次服務，如還有其他的諮詢請點擊我們24h在線客服，期待您的下次光臨，祝您生活愉快',
- '很高兴为您提供此次服务，如还有其他的咨询请点击我们24h在线客服，期待您的下次光临，祝您生活愉快',
- '感謝您對我們的支持，如有任何疑問，歡迎隨時諮詢24小時在線客服。祝您生活愉快，盈利多多',
- '感谢您对我们的支持，如有任何疑问，欢迎随时咨询24小时在线客服。祝您生活愉快，盈利多多',
- '您客氣了，您的滿意一直是我們的目標，有任何問題歡迎您隨時聯繫在線客服，祝您生活愉快，多多盈利',
- '您客气了，您的满意一直是我们的目标，有任何问题欢迎您随时联系在线客服，祝您生活愉快，多多盈利'
-];
 const norm=s=>s.replace(/[\s*，,。.!！?？｜|]/g,'').toLowerCase();
-const isEnd=s=>{const n=norm(s);return END_PHRASES.some(p=>n.includes(norm(p)))||(
- ['感謝您的諮詢','感谢您的咨询'].some(x=>n.includes(x))&&
- ['對話','对话'].some(x=>n.includes(x))&&
- ['稍後關閉','稍后关闭'].some(x=>n.includes(x))&&
- ['在線客服','在线客服'].some(x=>n.includes(x))
-)||(
- ['很高興','很高兴'].some(x=>n.includes(x))&&
- ['提供此次服務','提供此次服务'].some(x=>n.includes(x))&&
- ['其他諮詢','其他咨询'].some(x=>n.includes(x))&&
- ['在線客服','在线客服'].some(x=>n.includes(x))&&
- ['下次光臨','下次光临'].some(x=>n.includes(x))&&
- ['生活愉快'].some(x=>n.includes(x))
-)||(
- ['許久尚未回覆','许久尚未回复'].some(x=>n.includes(x))&&
- ['對話框','对话框'].some(x=>n.includes(x))&&
- ['關閉','关闭'].some(x=>n.includes(x))
-)||(
- ['長時間','长时间'].some(x=>n.includes(x))&&
- ['未收到您的回覆','未收到您的回复','沒有得到您的回覆','没有得到您的回复'].some(x=>n.includes(x))&&
- ['中斷此次對話','中断此次对话','終止此次對話','终止此次对话'].some(x=>n.includes(x))
-)};
-const isLegacy=s=>{const n=norm(s);return(
- ['請問','请问'].some(x=>n.includes(x))&&
- ['其他','還有什麼','还有什么'].some(x=>n.includes(x))&&
- ['協助','协助','幫助','帮助'].some(x=>n.includes(x))
- )||(
-  ['請問','请问'].some(x=>n.includes(x))&&
-  ['還有問題','还有问题','有問題','有问题'].some(x=>n.includes(x))&&
-  ['處理','处理'].some(x=>n.includes(x))
- )||(
-  ['在線上','在线上'].some(x=>n.includes(x))&&
-  ['協助','协助'].some(x=>n.includes(x))&&
-  ['跟進','跟进','處理','处理'].some(x=>n.includes(x))
- )||['屏幕前','還在線嗎','还在线吗','還在聊天窗口嗎','还在聊天窗口吗'].some(x=>n.includes(norm(x)))};
+const isEnd=s=>/祝您.*[!！]/.test(s||'');
+const isLegacy=s=>/(?:在線|在线|屏幕)[^。.!！?？\r\n]*[?？]/.test(s||'');
 function stamp(m,year){return new Date(Number(m[1]||year),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),Number(m[6])).getTime()}
 function parse(raw){
  const lines=raw.replace(/\r/g,'').split('\n').map(x=>x.trim()), marks=[];let year=new Date().getFullYear();
