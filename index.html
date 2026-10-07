@@ -20,7 +20,7 @@
   </style>
 </head>
 <body>
-<header><div class="wrap"><h1>客服对话时间错误检查工具</h1><p>版本 v2026.09.18.3｜贴上完整聊天文字，检查回复时间、流程与客服用语。</p></div></header>
+<header><div class="wrap"><h1>客服对话时间错误检查工具</h1><p>版本 v2026.10.07.1｜贴上完整聊天文字，检查回复时间、流程与客服用语。</p></div></header>
 <main class="wrap"><div class="grid">
   <section class="panel"><h2>聊天内容</h2><textarea id="input" spellcheck="false" placeholder="请贴上完整聊天记录..."></textarea><div class="actions"><button class="primary" id="analyze">开始检查</button><button class="secondary" id="clear">清除</button></div></section>
   <section class="panel"><h2>检查结果</h2><div id="result"><div class="notice">尚未分析聊天内容。</div></div></section>
@@ -32,10 +32,11 @@ const TRANSFER=/轉接|转接/;
 const DELIVERY_STATUS=/^(?:已发送|已發送)$/;
 const AUTO=/^自動回覆$|^自动回复$|自動回覆頭像|自动回复头像/;
 const AGENT_HINT=/客服|\{[^}]+\}|頭像$|头像$/;
-const META=/^(?:自動回覆|自动回复|.*頭像|.*头像|\{[^}]+\}\S*)$/;
-const AGENT_META=/^(?:.*頭像|.*头像|\{[^}]+\}\S*)$/;
+const META=/^(?:自動回覆|自动回复|.*頭像|.*头像|\{[^}]+\}\s*\S*)$/;
+const AGENT_META=/^(?:.*頭像|.*头像|\{[^}]+\}\s*\S*)$/;
 const cleanAgent=s=>(s||'').replace(/頭像$|头像$/,'').trim();
 const transferAgents=s=>{const m=(s||'').match(/(?:轉接|转接)\s+(.+?)\s+(?:分配給|分配给)\s+(.+)$/);return m?{from:cleanAgent(m[1]),to:cleanAgent(m[2])}:{from:'',to:''}};
+const repeatKey=s=>(s||'').replace(/[\s\u200B\uFEFF]+/gu,'');
 const norm=s=>s.replace(/[\s*，,。.!！?？｜|]/g,'').toLowerCase();
 const isEnd=s=>/祝您[^。.!！?？\r\n]*[!！。]/.test(s||'');
 const isLegacy=s=>/(?:在线|屏幕|请问)[^。.!！?？\r\n]*[?？]/.test(s||'');
@@ -107,11 +108,12 @@ function audit(events){
  }
  const repeatedAgentMessages=new Map();
  for(const event of events.filter(e=>e.role==='agent'&&e.text&&e.text!=='[图片]'&&e.text!=='[圖片]')){
-  const exactText=event.text.trim();if(!exactText)continue;
+  const exactText=repeatKey(event.text);if(!exactText)continue;
   if(!repeatedAgentMessages.has(exactText))repeatedAgentMessages.set(exactText,[]);
   repeatedAgentMessages.get(exactText).push(event);
  }
- for(const [text,occurrences] of repeatedAgentMessages){
+ for(const occurrences of repeatedAgentMessages.values()){
+  const text=occurrences[0].text.trim();
   if(occurrences.length<2)continue;
   const owners=[...new Set(occurrences.map(e=>e.agent).filter(Boolean))].join('、');
   const times=occurrences.map(e=>`${clock(e.t)}${e.agent?`（${e.agent}）`:''}`).join('；');
