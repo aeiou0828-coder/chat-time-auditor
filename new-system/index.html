@@ -162,7 +162,6 @@ function audit(events){
  if(!ending)errors.push({type:'缺少结束语',level:'流程错误',at:close?.t,owner:finalAgent,detail:'对话结束前未找到指定结束语。'});
  if(legacy&&ending){const gap=ending.t-legacy.t;if(gap<180000)errors.push({type:'遗留语间隔不足',level:'流程错误',at:ending.t,owner:ending.agent,detail:`遗留语 ${clock(legacy.t)}，结束语 ${clock(ending.t)}；间隔 ${fmt(gap)}，不足 ${fmt(180000-gap)}。`})}
  if(close&&/超时|超時|長時間未收到回覆|长时间未收到回复/.test(close.close))errors.push({type:'对话超时结束',level:'流程错误',at:close.t,owner:finalAgent,detail:`系统记录：${close.close}`});
- if(!close)errors.push({type:'未找到结束记录',level:'资料错误',owner:finalAgent,detail:'未找到「客服结束对话」、「同事结束对话」、「访客结束」、「对话超时结束」或「对话已关闭」。'});
  const transfers=events.filter(e=>e.transfer);let previousTransferTime=-Infinity;
  for(const transfer of transfers){
   const hasTransferNotice=events.some(e=>{
