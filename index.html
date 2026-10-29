@@ -41,9 +41,9 @@ const norm=s=>s.replace(/[\s*，,。.!！?？｜|]/g,'').toLowerCase();
 const isEnd=s=>/祝您[^。.!！?？\r\n]*[!！。]/.test(s||'');
 const isLegacy=s=>/(?:在线|屏幕|请问)[^。.!！?？\r\n]*[?？]/.test(s||'');
 const isLinkOnly=s=>/^(?:(?:https?:\/\/|www\.)\S+\s*)+$/i.test((s||'').trim());
-const hasEndingPunctuation=s=>/[\p{P}]$/u.test((s||'').trim());
+const hasEndingPunctuation=s=>{const text=(s||'').replace(/[\p{Cf}]/gu,'').trim();return /[\p{P}\p{S}]$/u.test(text)||/(?:\p{Extended_Pictographic}|\p{Regional_Indicator})[\uFE0E\uFE0F\p{Emoji_Modifier}]*$/u.test(text)||/[0-9#*]\uFE0F?\u20E3$/u.test(text)};
 const punctuationUnits=s=>(s||'').split(/(?=[※＊])/u).map(x=>x.trim()).filter(Boolean);
-const isPunctuationExempt=s=>/新人专享礼包/.test(s||'');
+const isPunctuationExempt=s=>/新人专享礼包/.test(s||'')||/已撤回$/u.test((s||'').replace(/[\p{Cf}]/gu,'').trim());
 function stamp(m,year){return new Date(Number(m[1]||year),Number(m[2])-1,Number(m[3]),Number(m[4]),Number(m[5]),Number(m[6])).getTime()}
 function parse(raw){
  const lines=raw.replace(/\r/g,'').split('\n').map(x=>x.trim()), marks=[];let year=new Date().getFullYear();
