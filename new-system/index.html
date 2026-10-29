@@ -25,7 +25,7 @@
 <script>
 const TIME=/^(?:(\d{4})-)?(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})(?:\s+(.*))?$/;
 const AGENT_TIME=/^(.+?)\s+(?:(\d{4})-)?(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/;
-const CLOSE=/(客服.*?(?:结束对话|結束對話)|同事.*?(?:结束对话|結束對話)|访客结束|訪客結束|对话超时结束|對話超時結束)/;
+const CLOSE=/(客服.*?(?:结束对话|結束對話)|同事.*?(?:结束对话|結束對話)|访客结束|訪客結束|对话超时结束|對話超時結束|(?:对话|對話)(?:已关闭|已關閉))/;
 const TRANSFER=/轉接|转接/;
 const DELIVERY_STATUS=/^(?:已发送|已發送)$/;
 const RECALL=/^已撤回$/;
@@ -45,7 +45,26 @@ const END_PHRASES=[
  '您客氣了，您的滿意一直是我們的目標，有任何問題歡迎您隨時聯繫在線客服，祝您生活愉快，多多盈利',
  '您客气了，您的满意一直是我们的目标，有任何问题欢迎您随时联系在线客服，祝您生活愉快，多多盈利'
 ];
-const norm=s=>s.replace(/[\s*，,。.!！?？｜|]/g,'').toLowerCase();
+const LEGACY_TEMPLATES=[
+ '能为您提供协助是客服的荣幸，请问目前还有其他需要客服帮忙确认或处理的事项吗？',
+ '很荣幸为您提供此次服务，请问还有其他地方可以为您协助的吗？',
+ '客服很荣幸能为您服务，请问除了以上的问题以外还有什么问题可以帮助您？',
+ '为了确保您的问题都已完全解决，请问目前还有其他需要客服为您代劳的地方吗？',
+ '很荣幸为您服务，请问还有没有其他地方需要客服为您补充说明的呢？',
+ '您好，请问您目前还在线上吗？客服人员目前正在等待您的回复，以便继续为您提供更完整、详细的协助，感谢您的支持。',
+ '您好，请问您还在线吗？如果您对刚才的内容还有任何疑问，或是需要了解更多细节，随时可以告诉客服，客服会一直在线协助您哦！',
+ '请问您还在线吗？为了确保能给您最满意的服务体验，如果您还有其他想了解的，请随时告诉客服，感谢您的耐心配合！'
+];
+END_PHRASES.push(
+ '感谢您对我们的支持，如有任何疑问，欢迎随时咨询 24小时在线客服。祝您生活愉快，盈利多多！',
+ '很高兴为您提供此次服务。如还有其他咨询，请点击 24h 在线客服，期待您的下次光临，祝您生活愉快！',
+ '很高兴为您提供此次服务，如还有其他的咨询请点击我们24h在线客服，期待您的下次光临，祝您生活愉快！',
+ '由于长时间未收到您的回复，我们将中断此次对话，如有任何疑问，请您随时咨询我们在线客服，祝您盈利多多，事事皆顺心!',
+ '由于目前暂时没有收到您的回复，为了不占用您的时间，我们将先关闭目前的对话视窗。如果您后续还有任何疑问，欢迎随时再与客服联系，祝您顺心如意！',
+ '因为长时间未收到您的进一步指示，本次线上服务将先告一段落。如果您还有未尽事宜或需要协助的地方，欢迎随时寻找线上客服，祝您财源广进、万事如意！',
+ '鉴于您目前暂未在线上回应，我们将暂时中断此次对话。若后续还有其他需要帮忙的地方，随时欢迎您回来咨询，祝您每天都有好心情、事事顺心！'
+);
+const norm=s=>s.replace(/[\s\p{P}\p{Cf}]/gu,'').toLowerCase();
 const isEnd=s=>{const n=norm(s);return END_PHRASES.some(p=>n.includes(norm(p)))||(
  ['感謝您的諮詢','感谢您的咨询'].some(x=>n.includes(x))&&
  ['對話','对话'].some(x=>n.includes(x))&&
@@ -67,10 +86,10 @@ const isEnd=s=>{const n=norm(s);return END_PHRASES.some(p=>n.includes(norm(p)))|
  ['未收到您的回覆','未收到您的回复','沒有得到您的回覆','没有得到您的回复'].some(x=>n.includes(x))&&
  ['中斷此次對話','中断此次对话','終止此次對話','终止此次对话'].some(x=>n.includes(x))
 )};
-const isLegacy=s=>{const n=norm(s);return(
+const isLegacy=s=>{const n=norm(s);return LEGACY_TEMPLATES.some(p=>n.includes(norm(p)))||(
  ['請問','请问'].some(x=>n.includes(x))&&
  ['其他','還有什麼','还有什么'].some(x=>n.includes(x))&&
- ['協助','协助','幫助','帮助'].some(x=>n.includes(x))
+ ['協助','协助','幫助','帮助','代勞','代劳'].some(x=>n.includes(x))
  )||(
   ['請問','请问'].some(x=>n.includes(x))&&
   ['還有問題','还有问题','有問題','有问题'].some(x=>n.includes(x))&&
@@ -142,8 +161,8 @@ function audit(events){
  if(!legacy)errors.push({type:'缺少遗留语',level:'流程错误',at:close?.t,owner:finalAgent,detail:'对话结束前未找到有效遗留语。'});
  if(!ending)errors.push({type:'缺少结束语',level:'流程错误',at:close?.t,owner:finalAgent,detail:'对话结束前未找到指定结束语。'});
  if(legacy&&ending){const gap=ending.t-legacy.t;if(gap<180000)errors.push({type:'遗留语间隔不足',level:'流程错误',at:ending.t,owner:ending.agent,detail:`遗留语 ${clock(legacy.t)}，结束语 ${clock(ending.t)}；间隔 ${fmt(gap)}，不足 ${fmt(180000-gap)}。`})}
- if(close&&/超时|超時/.test(close.close))errors.push({type:'对话超时结束',level:'流程错误',at:close.t,owner:finalAgent,detail:`系统记录：${close.close}`});
- if(!close)errors.push({type:'未找到结束记录',level:'资料错误',owner:finalAgent,detail:'未找到「客服结束对话」、「同事结束对话」、「访客结束」或「对话超时结束」。'});
+ if(close&&/超时|超時|長時間未收到回覆|长时间未收到回复/.test(close.close))errors.push({type:'对话超时结束',level:'流程错误',at:close.t,owner:finalAgent,detail:`系统记录：${close.close}`});
+ if(!close)errors.push({type:'未找到结束记录',level:'资料错误',owner:finalAgent,detail:'未找到「客服结束对话」、「同事结束对话」、「访客结束」、「对话超时结束」或「对话已关闭」。'});
  const transfers=events.filter(e=>e.transfer);let previousTransferTime=-Infinity;
  for(const transfer of transfers){
   const hasTransferNotice=events.some(e=>{
@@ -156,6 +175,14 @@ function audit(events){
   });
   if(!hasTransferNotice)errors.push({type:'转接没发送转接语',level:'流程错误',at:transfer.t,owner:transfer.from,detail:`${clock(transfer.t)} 发生转接，但本次转接前未找到包含「将会为您转接到」的客服信息。系统记录：${transfer.transfer}`});
   previousTransferTime=transfer.t;
+ }
+ // Punctuation quality is independent of legacy/ending phrase recognition.
+ for(const event of usable.filter(e=>e.role==='agent'&&e.text&&e.text!=='[图片]'&&e.text!=='[圖片]')){
+  const text=event.text.trim().replace(/[\p{Cf}]/gu,'').replace(/(?:\*\*|__)+$/g,'').trim();
+  const hasEndingMark=/[\p{P}~～]$/u.test(text)||/(?:\p{Extended_Pictographic}|\p{Regional_Indicator})[\uFE0E\uFE0F\p{Emoji_Modifier}]*$/u.test(text)||/[0-9#*]\uFE0F?\u20E3$/u.test(text);
+  if(!hasEndingMark){
+   errors.push({type:'话术缺少结尾标点',level:'话术错误',at:event.t,owner:event.agent,detail:`${clock(event.t)} 的客服话术缺少结尾标点。发话内容：${event.text}`});
+  }
  }
  const repeatedAgentMessages=new Map();
  for(const event of events.filter(e=>e.role==='agent'&&e.text&&e.text!=='[图片]'&&e.text!=='[圖片]')){
